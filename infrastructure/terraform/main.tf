@@ -1,6 +1,24 @@
 ####################################################################################################
-# Shared infrastructure (resource group, monitoring, ...)
+# Local variables derived from global settings: environment defaults to dev, size to small
 ####################################################################################################
+
+locals {
+  environment = "${lookup(var.workspace_to_environment_map, terraform.workspace, "dev")}"
+  size = "${local.environment == "dev" ? lookup(var.workspace_to_size_map, terraform.workspace, "small") : var.environment_to_size_map[local.environment]}"
+}
+
+####################################################################################################
+# Shared infrastructure (shared services resource group, landscape resource group, monitoring, ...)
+####################################################################################################
+
+resource "azurerm_resource_group" "shared_services_rg" {
+  name     = "shared-services-rg"
+  location = var.location
+
+  tags = {
+    environment = "shared-services"
+  }
+}
 
 resource "azurerm_resource_group" "default_rg" {
   name     = "${var.prefix}-${var.environment}-rg"
@@ -13,14 +31,21 @@ resource "azurerm_resource_group" "default_rg" {
 
 resource "azurerm_log_analytics_workspace" "shared" {
   name                = "${var.prefix}-${var.environment}-log"
-  resource_group_name = azurerm_resource_group.default_rg.name
-  location            = azurerm_resource_group.default_rg.location
+  resource_group_name = azurerm_resource_group.shared_services_rg.name
+  location            = azurerm_resource_group.shared_services_rg.location
   sku                 = "PerGB2018"
   retention_in_days   = 30
 
   tags = {
     environment = "${var.environment}"
   }
+}
+
+
+module "variables" {
+  source = "git::https://github.com/project/config//variables"
+  environment = "${local.environment}"
+  size        = "${local.size}"
 }
 
 ####################################################################################################
@@ -174,7 +199,6 @@ resource "azurerm_public_ip" "portal_ip" {
     environment = "${var.environment}"
   }
 }
-
 
 provider "helm" {
     debug = true
