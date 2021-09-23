@@ -91,11 +91,11 @@ module "aks_services" {
   cluster_name                     = "${var.prefix}-${var.environment}-aks-services"
   dns_prefix                       = "${var.prefix}${var.environment}akssrv"
   network_plugin                   = "kubenet"
-  
+  public_ssh_key                   = "${var.aks_public_ssh_key}"  
   enable_role_based_access_control = true
   rbac_aad_managed                 = true
   rbac_aad_admin_user_names        = []
-  rbac_aad_admin_group_object_id   = "1ae80804-e856-4f2d-8b1e-03ea5651058f"
+  rbac_aad_admin_group_object_id   = "${var.aks_admin_group_id}" 
 
   enable_http_application_routing  = false
   enable_azure_policy              = false
@@ -116,6 +116,7 @@ module "aks_services" {
   net_profile_outbound_type        = "loadBalancer"
 
   enable_log_analytics_workspace   = true
+  log_analytics_workspace_group    = azurerm_log_analytics_workspace.shared.resource_group_name
   log_analytics_workspace_id       = azurerm_log_analytics_workspace.shared.id
   log_analytics_workspace_name     = azurerm_log_analytics_workspace.shared.name
 
@@ -136,25 +137,6 @@ resource "azurerm_role_assignment" "aks_to_acr" {
 ####################################################################################################
 # NGINX Ingress with TLS
 ####################################################################################################
-
-provider "kubernetes" {
-  host                   = module.aks_services.kube_admin_config.0.host
-  username               = module.aks_services.kube_admin_config.0.username
-  password               = module.aks_services.kube_admin_config.0.password
-  client_key             = base64decode(module.aks_services.kube_admin_config.0.client_key)
-  client_certificate     = base64decode(module.aks_services.kube_admin_config.0.client_certificate)
-  cluster_ca_certificate = base64decode(module.aks_services.kube_admin_config.0.cluster_ca_certificate)
-}
-
-# create namespace for NGINX ingress controller resources
-resource "kubernetes_namespace" "ingress_nginx_namespace" {
-  metadata {
-    name = "ingress-nginx"
-    labels = {
-      "cert-manager.io/disable-validation" = "true"
-    }
-  }
-}
 
 # Create static public IP Address to be used by NGINX ingress controller
 resource "azurerm_public_ip" "ingress_ip" {
@@ -177,28 +159,28 @@ resource "azurerm_public_ip" "portal_ip" {
   resource_group_name = "${module.aks_services.node_resource_group}"
   sku                 = "Standard"
   allocation_method   = "Static"
-  domain_name_label   = "${var.prefix}${var.environment}aksportalsrv"
+  domain_name_label   = "${var.prefix}${var.environment}aksportal"
   
   tags = {
     environment = "${var.environment}"
   }
 }
 
-provider "helm" {
-    debug = true
-    kubernetes {
-        host     = module.aks_services.kube_admin_config.0.host
-        client_key             = base64decode(module.aks_services.kube_admin_config.0.client_key)
-        client_certificate     = base64decode(module.aks_services.kube_admin_config.0.client_certificate)
-        cluster_ca_certificate = base64decode(module.aks_services.kube_admin_config.0.cluster_ca_certificate)
-    }  
+# create namespace for NGINX ingress controller resources
+resource "kubernetes_namespace" "ingress_service_namespace" {
+  metadata {
+    name = "ingress-service"
+    labels = {
+      "cert-manager.io/disable-validation" = "true"
+    }
+  }
 }
 
 # deploy NGINX ingress controller with Helm
 resource "helm_release" "nginx_ingress" {
-  name       = "ingress-nginx"
+  name       = "ingress-service"
   chart      = "ingress-nginx"
-  namespace  = kubernetes_namespace.ingress_nginx_namespace.metadata[0].name
+  namespace  = kubernetes_namespace.ingress_service_namespace.metadata[0].name
   repository = "https://kubernetes.github.io/ingress-nginx"
   timeout    = 300
   
@@ -206,16 +188,84 @@ resource "helm_release" "nginx_ingress" {
     name  = "controller.service.loadBalancerIP"
     value = "${azurerm_public_ip.ingress_ip.ip_address}"
   }
+
+  set {
+    name = "controller.ingressClass"
+    value = "nginx-service"
+  }
+
+  set {
+    name = "controller.ingressClassResource.name"
+    value = "nginx-service"
+  }
+
+  set {
+    name = "controller.ingressClassResource.controllerValue"
+    value = "k8s.io/nginx-service"
+  }
+
   set {
     name  = "controller.service.annotations.\"service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group\""
     value = "${module.aks_services.node_resource_group}"
   }
+
   set {
     name  = "controller.service.annotations.\"service\\.beta\\.kubernetes\\.io/azure-dns-label-name\""
     value = "${var.prefix}${var.environment}akssrv"
   }
+ 
+  depends_on = [kubernetes_namespace.ingress_service_namespace, module.aks_services, azurerm_public_ip.ingress_ip]
+}
 
-  depends_on = [module.aks_services, azurerm_public_ip.ingress_ip]
+# create a second namespace for portal NGINX ingress controller resources
+resource "kubernetes_namespace" "ingress_portal_namespace" {
+  metadata {
+    name = "ingress-portal"
+    labels = {
+      "cert-manager.io/disable-validation" = "true"
+    } 
+  }
+}
+
+# deploy a second NGINX ingress controller with Helm
+resource "helm_release" "nginx_ingress_portal" {
+  name       = "ingress-portal"
+  chart      = "ingress-nginx"
+  namespace  = kubernetes_namespace.ingress_portal_namespace.metadata[0].name
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  timeout    = 300
+  
+  set {
+    name  = "controller.service.loadBalancerIP"
+    value = "${azurerm_public_ip.portal_ip.ip_address}"
+  }
+
+  set {
+    name = "controller.ingressClass"
+    value = "nginx-portal"
+  }
+
+  set {
+    name = "controller.ingressClassResource.name"
+    value = "nginx-portal"
+  }
+
+  set {
+    name = "controller.ingressClassResource.controllerValue"
+    value = "k8s.io/nginx-portal"
+  }
+  
+  set {
+    name  = "controller.service.annotations.\"service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group\""
+    value = "${module.aks_services.node_resource_group}"
+  }
+
+  set {
+    name  = "controller.service.annotations.\"service\\.beta\\.kubernetes\\.io/azure-dns-label-name\""
+    value = "${var.prefix}${var.environment}aksportal"
+  }
+
+  depends_on = [kubernetes_namespace.ingress_portal_namespace, module.aks_services, azurerm_public_ip.portal_ip]
 }
 
 ####################################################################################################
@@ -285,4 +335,53 @@ resource "kubernetes_namespace" "partsrelationship_namespace" {
   metadata {
     name = "partsrelationship"
   }
+}
+
+# Semantic Services
+resource "kubernetes_namespace" "semantics_namespace" {
+  metadata {
+    name = "semantics"
+  }
+}
+
+####################################################################################################
+# Create a database service
+####################################################################################################
+
+resource "azurerm_postgresql_server" "database" {
+  name                = "${var.prefix}${var.environment}database"
+  resource_group_name = azurerm_resource_group.default_rg.name 
+  location            = azurerm_resource_group.default_rg.location  
+
+  administrator_login          =  var.catenax_admin
+  administrator_login_password =  var.catenax_admin_password
+
+  sku_name   = "B_Gen5_1"
+  version    = "11"
+  storage_mb = 61440
+
+  geo_redundant_backup_enabled = false
+  auto_grow_enabled            = false
+
+  public_network_access_enabled    = true
+  ssl_enforcement_enabled          = true
+  ssl_minimal_tls_version_enforced = "TLS1_2"
+}
+
+####################################################################################################
+# Create a storage account
+####################################################################################################
+
+resource "azurerm_storage_account" "appstorage" {
+  name                     = "${var.prefix}${var.environment}storage"
+  resource_group_name      = azurerm_resource_group.default_rg.name 
+  location                 = azurerm_resource_group.default_rg.location  
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  shared_access_key_enabled = true
+
+  #network_rules {
+  #  default_action             = "Allow"
+  #  virtual_network_subnet_ids = [module.aks_vnet.subnet_ids["${var.prefix}-${var.environment}-aks-node-subnet"]]
+  #}
 }
