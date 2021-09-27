@@ -170,9 +170,9 @@ resource "azurerm_public_ip" "portal_ip" {
 resource "kubernetes_namespace" "ingress_service_namespace" {
   metadata {
     name = "ingress-service"
-    labels = {
-      "cert-manager.io/disable-validation" = "true"
-    }
+    #labels = {
+    #  "cert-manager.io/disable-validation" = "true"
+    #}
   }
 }
 
@@ -201,7 +201,7 @@ resource "helm_release" "nginx_ingress" {
 
   set {
     name = "controller.ingressClassResource.controllerValue"
-    value = "k8s.io/nginx-service"
+    value = "ingress-service/ingress-service-ingress-nginx-controller"
   }
 
   set {
@@ -221,9 +221,9 @@ resource "helm_release" "nginx_ingress" {
 resource "kubernetes_namespace" "ingress_portal_namespace" {
   metadata {
     name = "ingress-portal"
-    labels = {
-      "cert-manager.io/disable-validation" = "true"
-    } 
+    #labels = {
+    #  "cert-manager.io/disable-validation" = "true"
+    #} 
   }
 }
 
@@ -252,7 +252,7 @@ resource "helm_release" "nginx_ingress_portal" {
 
   set {
     name = "controller.ingressClassResource.controllerValue"
-    value = "k8s.io/nginx-portal"
+    value = "ingress-portal/ingress-portal-ingress-nginx-controller"
   }
   
   set {
