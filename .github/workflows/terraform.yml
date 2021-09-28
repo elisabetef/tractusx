@@ -99,7 +99,7 @@ jobs:
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-1-semantics || "${{github.ref}}" = refs/heads/feature/CAX-1-semantics@CXMVP-63-semantic-architecture ]]; then
                   echo "Determined SEMANTICS"
                   echo "::set-output name=workspace::dev042"
-              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops || "${{github.ref}}" = refs/heads/feature/feature/CAX-12-devops@CXMVP-117-IAM ]]; then
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM ]]; then
                   echo "Determined DEVOPS"
                   echo "::set-output name=workspace::dev003"    
               else 
