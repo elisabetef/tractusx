@@ -1,0 +1,42 @@
+name: IAM
+
+on: 
+  push:
+    paths:
+      # This is where IAM related scripts and manifests reside
+      - 'coreservices/iam/**'
+      # this workflow file
+      - '.github/workflows/iam.yml'
+    branches:
+      # Integration environment
+      - main
+      # DevOps and IAM Dev Space
+      - feature/CAX-12-devops
+      # Temporarily: DevOps Dev Space IAM Features
+      - feature/CAX-12-devops@CXMVP-117-IAM
+      # ADAPT HERE TO ADD NEW WORKSPACES
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:    
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+                      
+      - name: Azure Kubernetes set context
+        uses: azure/aks-set-context@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          resource-group: catenax-dev003-rg
+          cluster-name: catenax-dev003-aks-services
+        
+      - name: Azure Kubernetes deploy
+        uses: Azure/k8s-deploy@v1
+        with:
+          namespace: iam        
+          manifests: |
+            ./infrastructure/manifests/iam.yaml
+            ./infrastructure/manifests/iam-ingress.yaml          

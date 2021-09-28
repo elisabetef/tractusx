@@ -344,6 +344,13 @@ resource "kubernetes_namespace" "semantics_namespace" {
   }
 }
 
+# Shared Identity and Access Management (IAM) Service
+resource "kubernetes_namespace" "iam_namespace" {
+  metadata {
+    name = "iam"
+  }
+}
+
 ####################################################################################################
 # Create a database service
 ####################################################################################################

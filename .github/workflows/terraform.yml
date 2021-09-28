@@ -51,8 +51,12 @@ on:
       - main
       # Semantics Dev Space
       - feature/CAX-1-semantics
+      # DevOps and IAM Dev Space
+      - feature/CAX-12-devops
       # Temporarily: Semantics Dev Space Terraform/Deplyment Features
       - feature/CAX-1-semantics@CXMVP-63-semantic-architecture
+      # Temporarily: DevOps Dev Space IAM Features
+      - feature/CAX-12-devops@CXMVP-117-IAM
       # ADAPT HERE TO ADD NEW WORKSPACES
 
 ###############################################################
@@ -95,6 +99,9 @@ jobs:
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-1-semantics || "${{github.ref}}" = refs/heads/feature/CAX-1-semantics@CXMVP-63-semantic-architecture ]]; then
                   echo "Determined SEMANTICS"
                   echo "::set-output name=workspace::dev042"
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops || "${{github.ref}}" = refs/heads/feature/feature/CAX-12-devops@CXMVP-117-IAM ]]; then
+                  echo "Determined DEVOPS"
+                  echo "::set-output name=workspace::dev003"    
               else 
                   echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
               fi
