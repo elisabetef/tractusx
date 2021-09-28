@@ -27,8 +27,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: semantics-ingress
-  namespace: semantics
+  name: iam-ingress
+  namespace: iam
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt${CLUSTER_ISSUER}
@@ -47,10 +47,10 @@ spec:
   - host: ${CATENA_SERVICE_URL}
     http:
       paths:
-      - path: /semantics(/|$)(.*)
+      - path: /iam(/|$)(.*)
         pathType: Prefix
         backend:
           service:
-            name: semantics
+            name: iam
             port:
               number: 8080

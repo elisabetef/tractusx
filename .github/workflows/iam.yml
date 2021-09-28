@@ -25,10 +25,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: 'Login via Azure CLI'
+      - name: Login via Azure CLI
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }} 
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set environment
+        run: |
+          chmod +x ./infrastructure/manifests/env_dev_int.iam.sh
+          ./infrastructure/manifests/env_dev_int.iam.sh
 
       - name: Azure Kubernetes set context
         uses: azure/aks-set-context@v1
@@ -43,4 +48,6 @@ jobs:
           namespace: iam        
           manifests: |
             ./infrastructure/manifests/iam.yaml
-            ./infrastructure/manifests/iam-ingress.yaml          
+            ./infrastructure/manifests/iam-ingress.yaml
+          env: |
+            CLUSTER_ISSUER: ${{env.CLUSTER_ISSUER}}      
