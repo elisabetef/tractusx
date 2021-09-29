@@ -30,8 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       workspace: ${{ steps.setvars.outputs.workspace }}
-      issuer: ${{ steps.setvars.outputs.issuer }}
-
+      
     steps:
       - name: Set variables
         id: setvars
@@ -40,7 +39,6 @@ jobs:
              if [[ "${{github.ref}}" == refs/heads/main ]]; then
                 echo "Determined PRODUCTION"
                 echo "::set-output name=workspace::prod"
-                echo "::set-output name=issuer::prod"
              else
                 echo "Unsupported Environment on ECLIPSE. Leaving Workspace empty."
              fi
@@ -49,15 +47,12 @@ jobs:
               if [[ "${{github.ref}}" == refs/heads/main ]]; then
                 echo "Determined INTEGRATION"
                 echo "::set-output name=workspace::int"
-                echo "::set-output name=issuer::staging"
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-1-semantics || "${{github.ref}}" = refs/heads/feature/CAX-1-semantics@CXMVP-63-semantic-architecture ]]; then
                   echo "Determined SEMANTICS"
                   echo "::set-output name=workspace::dev042"
-                  echo "::set-output name=issuer::staging"
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM ]]; then
                   echo "Determined DEVOPS"
                   echo "::set-output name=workspace::dev003"
-                  echo "::set-output name=issuer::staging"
               else 
                   echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
               fi
@@ -74,7 +69,7 @@ jobs:
     if: ${{needs.environment.outputs.workspace}}
     env:
       WORKSPACE: ${{needs.environment.outputs.workspace}}
-      CLUSTER_ISSUER: ${{needs.environment.outputs.issuer}}
+      CLUSTER_ISSUER: service
       CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com/
       CATENA_SERVICE_HOST: catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
 
@@ -98,13 +93,15 @@ jobs:
         id: login
 
       # Deploy IAM service
-      - name: IAM service deployment on AKS
-        working-directory: ./infrastructure/manifests        
-        run: |
-          cat iam.yaml | envsubst | kubectl apply -f - 
+      - name: Deploy IAM service on AKS
+        uses: Azure/k8s-deploy@v1.4
+        with:
+          namespace: 'iam'
+          manifests: |
+            ./infrastructure/manifests/iam.yaml
 
       # Deploy IAM ingress
-      - name: IAM ingress deployment on AKS
+      - name: Deploy IAM ingress on AKS
         working-directory: ./infrastructure/manifests        
         run: |
           cat iam-ingress.yaml | envsubst | kubectl apply -f -
