@@ -17,37 +17,89 @@ on:
       # ADAPT HERE TO ADD NEW WORKSPACES
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  ########################################
+  # First job to determine the environment
+  ########################################
 
-    steps:    
+  environment:
+    name: Determine Target Environment
+    runs-on: ubuntu-latest
+    outputs:
+      workspace: ${{ steps.setvars.outputs.workspace }}
+      issuer: ${{ steps.setvars.outputs.issuer }}
+
+    steps:
+      - name: Set variables
+        id: setvars
+        run: |
+          if [[ "${{github.repository}}" == eclipse/tractusx ]]; then
+             if [[ "${{github.ref}}" == refs/heads/main ]]; then
+                echo "Determined PRODUCTION"
+                echo "::set-output name=workspace::prod"
+                echo "::set-output name=issuer::prod"
+             else
+                echo "Unsupported Environment on ECLIPSE. Leaving Workspace empty."
+             fi
+          else 
+            if [[ "${{github.repository}}" == catenax/tractusx ]]; then
+              if [[ "${{github.ref}}" == refs/heads/main ]]; then
+                echo "Determined INTEGRATION"
+                echo "::set-output name=workspace::int"
+                echo "::set-output name=issuer::staging"
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-1-semantics || "${{github.ref}}" = refs/heads/feature/CAX-1-semantics@CXMVP-63-semantic-architecture ]]; then
+                  echo "Determined SEMANTICS"
+                  echo "::set-output name=workspace::dev042"
+                  echo "::set-output name=issuer::staging"
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM ]]; then
+                  echo "Determined DEVOPS"
+                  echo "::set-output name=workspace::dev003"
+                  echo "::set-output name=issuer::staging"
+              else 
+                  echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
+              fi
+            else
+                echo "Unsupported Environment/Repository. Leaving Workspace empty."
+            fi
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    # rely on the first job
+    needs: environment
+    # rely on successful detection of the workspace, ignore if empty
+    if: ${{needs.environment.outputs.workspace}}
+    env:
+      WORKSPACE: ${{needs.environment.outputs.workspace}}
+      CLUSTER_ISSUER: ${{needs.environment.outputs.issuer}}
+      CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com/
+
+    steps:
+      - name: Login via Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+
       # get the latest sources
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login via Azure CLI
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Set environment
-        run: |
-          chmod +x ./infrastructure/manifests/env_dev_int.iam.sh
-          ./infrastructure/manifests/env_dev_int.iam.sh
-
-      - name: Azure Kubernetes set context
+      # Login to AKS
+      - name: Kubernetes Login
         uses: azure/aks-set-context@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-          resource-group: catenax-dev003-rg
-          cluster-name: catenax-dev003-aks-services
-        
-      - name: Azure Kubernetes deploy
-        uses: Azure/k8s-deploy@v1
-        with:
-          namespace: iam        
-          manifests: |
-            ./infrastructure/manifests/iam.yaml
-            ./infrastructure/manifests/iam-ingress.yaml
-          env: |
-            CLUSTER_ISSUER: ${{env.CLUSTER_ISSUER}}      
+          creds: '${{secrets.AZURE_CREDENTIALS}}'
+          resource-group: 'catenax-${{needs.environment.outputs.workspace}}-rg'
+          cluster-name: 'catenax-${{needs.environment.outputs.workspace}}-aks-services'
+        id: login
+
+      # Deploy IAM service
+      - name: Kubernetes Portal Plane Client Issuer
+        working-directory: ./infrastructure/manifests        
+        run: |
+          cat iam.yaml | envsubst | kubectl apply -f - 
+
+      # Deploy IAM ingress
+      - name: Kubernetes Portal Plane Client Issuer
+        working-directory: ./infrastructure/manifests        
+        run: |
+          cat iam-issuer.yaml | envsubst | kubectl apply -f -
