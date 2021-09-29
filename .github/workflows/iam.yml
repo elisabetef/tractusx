@@ -94,13 +94,13 @@ jobs:
         id: login
 
       # Deploy IAM service
-      - name: IAM service deployment
+      - name: IAM service deployment on AKS
         working-directory: ./infrastructure/manifests        
         run: |
           cat iam.yaml | envsubst | kubectl apply -f - 
 
       # Deploy IAM ingress
-      - name: IAM ingress deployment
+      - name: IAM ingress deployment on AKS
         working-directory: ./infrastructure/manifests        
         run: |
           cat iam-ingress.yaml | envsubst | kubectl apply -f -
