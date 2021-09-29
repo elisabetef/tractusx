@@ -41,7 +41,7 @@ metadata:
 spec:
   tls:
   - hosts:
-    - ${CATENA_SERVICE_URL}
+    - ${CATENA_SERVICE_HOST}
     secretName: certificate${CLUSTER_ISSUER}-secret
   rules:
   - host: ${CATENA_SERVICE_HOST}
