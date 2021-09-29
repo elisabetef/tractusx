@@ -102,4 +102,4 @@ jobs:
       - name: Kubernetes Portal Plane Client Issuer
         working-directory: ./infrastructure/manifests        
         run: |
-          cat iam-issuer.yaml | envsubst | kubectl apply -f -
+          cat iam-ingress.yaml | envsubst | kubectl apply -f -
