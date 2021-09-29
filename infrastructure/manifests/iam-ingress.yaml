@@ -8,6 +8,9 @@
 # additional information regarding license terms.
 #
 
+# K8 Manifest to deploy the ingress configuration for the shared IAM service
+# Use envsubst before applying the descriptor
+
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

@@ -7,6 +7,10 @@ on:
       - 'coreservices/iam/**'
       # this workflow file
       - '.github/workflows/iam.yml'
+      # deployment manifest file
+      - 'infrastructure/manifests/iam.yaml'
+      # ingress manifest file
+      - 'infrastructure/manifests/iam-ingress.yaml'
     branches:
       # Integration environment
       - main
