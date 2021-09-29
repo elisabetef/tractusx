@@ -44,7 +44,7 @@ spec:
     - ${CATENA_SERVICE_URL}
     secretName: certificate${CLUSTER_ISSUER}-secret
   rules:
-  - host: ${CATENA_SERVICE_URL}
+  - host: ${CATENA_SERVICE_HOST}
     http:
       paths:
       - path: /iam(/|$)(.*)

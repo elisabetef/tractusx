@@ -71,7 +71,8 @@ jobs:
     env:
       WORKSPACE: ${{needs.environment.outputs.workspace}}
       CLUSTER_ISSUER: ${{needs.environment.outputs.issuer}}
-      CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
+      CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com/
+      CATENA_SERVICE_HOST: catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
 
     steps:
       - name: Login via Azure CLI
@@ -93,13 +94,13 @@ jobs:
         id: login
 
       # Deploy IAM service
-      - name: Kubernetes Portal Plane Client Issuer
+      - name: IAM service deployment
         working-directory: ./infrastructure/manifests        
         run: |
           cat iam.yaml | envsubst | kubectl apply -f - 
 
       # Deploy IAM ingress
-      - name: Kubernetes Portal Plane Client Issuer
+      - name: IAM ingress deployment
         working-directory: ./infrastructure/manifests        
         run: |
           cat iam-ingress.yaml | envsubst | kubectl apply -f -
