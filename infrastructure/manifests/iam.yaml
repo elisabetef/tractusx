@@ -19,8 +19,8 @@ metadata:
 spec:
   ports:
   - name: http
-    port: 8080
-    targetPort: 8080
+    port: 80
+    targetPort: 80
   selector:
     app: iam
   type: ClusterIP
@@ -54,8 +54,8 @@ spec:
           value: "true"
         ports:
         - name: http
-          containerPort: 8080
+          containerPort: 80
         readinessProbe:
           httpGet:
             path: /auth/realms/master
-            port: 8080
+            port: 80
