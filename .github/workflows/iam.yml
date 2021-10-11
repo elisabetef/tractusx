@@ -1,0 +1,137 @@
+#
+# Copyright (c) 2021 Microsoft (Catena-X Consortium)
+#
+# See the AUTHORS file(s) distributed with this work for additional
+# information regarding authorship.
+#
+# See the LICENSE file(s) distributed with this work for
+# additional information regarding license terms.
+#
+
+name: IAM
+
+on: 
+  push:
+    paths:
+      # This is where IAM related scripts and manifests reside
+      - 'coreservices/iam/**'
+      # this workflow file
+      - '.github/workflows/iam.yml'
+      # deployment manifest file
+      - 'infrastructure/manifests/iam.yaml'
+      # ingress manifest file
+      - 'infrastructure/manifests/iam-ingress.yaml'
+    branches:
+      # Integration environment
+      - main
+      # DevOps and IAM team integration branch
+      - feature/CAX-12-devops
+      # Temporarily: IAM feature branch
+      - feature/CAX-12-devops@CXMVP-117-IAM-Shared-Service
+      # ADAPT HERE TO ADD NEW WORKSPACES
+
+jobs:
+  ########################################
+  # First job to determine the environment
+  ########################################
+
+
+  environment:
+    # name of the job starts with a "run-level" subordinate to the workflow such that we can
+    # depend on them in order to implement workflow dependencies
+    name: 90 IAM Determine Target Environment
+    runs-on: ubuntu-latest
+    outputs:
+      workspace: ${{ steps.setvars.outputs.workspace }}
+
+    steps:
+      - name: Set variables
+        id: setvars
+        run: |
+          if [[ "${{github.repository}}" == eclipse/tractusx ]]; then
+             if [[ "${{github.ref}}" == refs/heads/main ]]; then
+                echo "Determined PRODUCTION"
+                echo "::set-output name=workspace::prod"
+             else
+                echo "Unsupported Environment on ECLIPSE. Leaving Workspace empty."
+             fi
+          else 
+            if [[ "${{github.repository}}" == catenax/tractusx ]]; then
+              if [[ "${{github.ref}}" == refs/heads/main ]]; then
+                echo "Determined INTEGRATION"
+                echo "::set-output name=workspace::int"
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-semantics || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM-Shared-Service ]]; then
+                  echo "Determined IAM"
+                  echo "::set-output name=workspace::dev003"
+              else 
+                  echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
+              fi
+            else
+                echo "Unsupported Environment/Repository. Leaving Workspace empty."
+            fi
+          fi
+
+  ##########################################
+  # Second job does the deployment to AKS
+  ##########################################
+  # FROM HERE ON: NO ADAPTION NEEDED ANYMORE
+
+  deploy:
+    # name of the job starts with a "run-level" subordinate to the workflow such that we can
+    # depend on them in order to implement workflow dependencies
+    name: 91 Frontend Portal Build & Deploy
+    runs-on: ubuntu-latest
+    # rely on the first job
+    needs: environment
+    # rely on successful detection of the workspace, ignore if empty
+    if: ${{needs.environment.outputs.workspace}}
+    env:
+      WORKSPACE: ${{needs.environment.outputs.workspace}}
+      CLUSTER_ISSUER: service
+      CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
+      # CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com/
+      CATENA_SERVICE_HOST: catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
+
+    steps:
+      # Wait for infrastructure deployments to terminate
+      - name: Wait for Infrastructure
+        uses: lewagon/wait-on-check-action@v1.0.0
+        with:
+          ref: ${{ github.ref }}
+          check-regexp: 0.*
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success,skipped,cancelled
+
+      # This is needed to interact with the subscription
+      - name: Login via Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+
+      # Get the latest sources
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Login to K8
+      - name: Kubernetes Login
+        uses: azure/aks-set-context@v1
+        with:
+          creds: '${{ secrets.AZURE_CREDENTIALS }}' # Azure credentials
+          resource-group: 'catenax-${{needs.environment.outputs.workspace}}-rg'
+          cluster-name: 'catenax-${{needs.environment.outputs.workspace}}-aks-services'
+        id: login
+
+      # Deploy IAM service
+      - name: Deploy IAM service on AKS
+        uses: Azure/k8s-deploy@v1.4
+        with:
+          namespace: 'iam'
+          manifests: |
+            ./infrastructure/manifests/iam.yaml
+
+      # Deploy IAM ingress
+      - name: Deploy IAM ingress on AKS
+        working-directory: ./infrastructure/manifests        
+        run: |
+          cat iam-ingress.yaml | envsubst | kubectl apply -f -
