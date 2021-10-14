@@ -62,7 +62,7 @@ jobs:
                 echo "::set-output name=workspace::int"
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-semantics || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM-Shared-Service ]]; then
                   echo "Determined IAM"
-                  echo "::set-output name=workspace::dev042"
+                  echo "::set-output name=workspace::dev009"
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-9-onboarding ]]; then
                   echo "Determined ONBOARDING"
                   echo "::set-output name=workspace::dev003"             
