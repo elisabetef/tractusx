@@ -100,6 +100,9 @@ jobs:
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-1-semantics || "${{github.ref}}" = refs/heads/feature/CAX-1-semantics@CXMVP-50-semantic-adapter ]]; then
                   echo "Determined SEMANTICS"
                   echo "::set-output name=workspace::dev042"
+              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-9-onboarding ]]; then
+                  echo "Determined ONBOARDING"
+                  echo "::set-output name=workspace::dev003"                  
               else 
                   echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
               fi
