@@ -62,7 +62,7 @@ jobs:
                 echo "::set-output name=workspace::int"
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-semantics || "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM-Shared-Service ]]; then
                   echo "Determined IAM"
-                  echo "::set-output name=workspace::dev003"
+                  echo "::set-output name=workspace::dev042"
               else 
                   echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
               fi
@@ -89,17 +89,18 @@ jobs:
       WORKSPACE: ${{needs.environment.outputs.workspace}}
       CLUSTER_ISSUER: service
       CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
-      # CATENA_SERVICE_URL: https://catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com/
       CATENA_SERVICE_HOST: catenax${{needs.environment.outputs.workspace}}akssrv.germanywestcentral.cloudapp.azure.com
-
+      DB_HOST: catenax${{needs.environment.outputs.workspace}}database
+      DB_USER: ${{secrets.CATENAX_USER}}
+      DB_PASSWORD: ${{secrets.CATENAX_PASSWORD}}
     steps:
       # Wait for infrastructure deployments to terminate
       - name: Wait for Infrastructure
         uses: lewagon/wait-on-check-action@v1.0.0
         with:
-          ref: ${{ github.ref }}
+          ref: ${{github.ref}}
           check-regexp: 0.*
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{secrets.GITHUB_TOKEN}}
           wait-interval: 30
           allowed-conclusions: success,skipped,cancelled
 
@@ -117,18 +118,17 @@ jobs:
       - name: Kubernetes Login
         uses: azure/aks-set-context@v1
         with:
-          creds: '${{ secrets.AZURE_CREDENTIALS }}' # Azure credentials
+          creds: '${{secrets.AZURE_CREDENTIALS}}' # Azure credentials
           resource-group: 'catenax-${{needs.environment.outputs.workspace}}-rg'
           cluster-name: 'catenax-${{needs.environment.outputs.workspace}}-aks-services'
         id: login
 
       # Deploy IAM service
       - name: Deploy IAM service on AKS
-        uses: Azure/k8s-deploy@v1.4
-        with:
-          namespace: 'iam'
-          manifests: |
-            ./infrastructure/manifests/iam.yaml
+        working-directory: ./infrastructure/manifests        
+        run: |
+          cat iam.yaml | envsubst | kubectl apply -f -
+
 
       # Deploy IAM ingress
       - name: Deploy IAM ingress on AKS

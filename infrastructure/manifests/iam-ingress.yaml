@@ -19,7 +19,6 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-service
     acme.cert-manager.io/http01-ingress-class: service
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
@@ -35,10 +34,10 @@ spec:
   - host: ${CATENA_SERVICE_HOST}
     http:
       paths:
-      - path: /iam(/|$)(.*)
+      - path: /auth(/|$)(.*)
         pathType: Prefix
         backend:
           service:
             name: iam
             port:
-              number: 80
+              number: 8080
