@@ -104,9 +104,6 @@ jobs:
               elif [[ "${{github.ref}}" = refs/heads/feature/CAX-9-onboarding ]]; then
                   echo "Determined ONBOARDING"
                   echo "::set-output name=workspace::dev003"                  
-              elif [[ "${{github.ref}}" = refs/heads/feature/CAX-12-devops@CXMVP-117-IAM-Shared-Service ]]; then
-                  echo "Determined DevOps"
-                  echo "::set-output name=workspace::dev009"                  
               else 
                   echo "Unsupported Branch on CATENAX. Leaving Workspace empty."
               fi
