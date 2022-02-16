@@ -1,3 +1,10 @@
+name: sast-scan
+on: push
+
+jobs:
+  sast-scan:   
+      runs-on: ubuntu-latest
+      steps:
       - name: Checkout
       - uses: actions/checkout@v2
       - name: Checkmarx AST CLI Action
@@ -8,8 +15,9 @@
           cx_tenant: ${{ secrets.TENANT }}
           cx_client_id: ${{ secrets.CLIENT_ID }}
           cx_client_secret: ${{ secrets.SECRET }}
-         additional_params: --report-format sarif --scan-types sast,sca,kics 
+          additional_params: --report-format sarif --scan-types sast,sca,kics --sast-preset-name "ASA Premium"
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v1
         with:
           sarif_file: 'cx_result.sarif'
+
